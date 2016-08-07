@@ -8,7 +8,6 @@ const util = require('util');
 
 const assert = require('chai').assert;
 const DiffMatchPatch = require('diff-match-patch');
-const express = require('express');
 
 const DeltaCache = require('../');
 
@@ -22,30 +21,29 @@ const EXPRESS_OPTIONS = {
 const DEFAULT_REQUEST_OPTIONS = {
   host: 'localhost',
   port: 6767,
-  path: '/dynamicContent'
+  path: '/'
 };
 
 describe('DeltaCache', function(){
-  it("should return valid middleware", function() {
+  it("should handle response", function() {
     let deltaCache = DeltaCache();
-    let app = express();
-    app.get(DEFAULT_REQUEST_OPTIONS.path, (res, req) => {
-      req.locals.responseBody = 'some response';
-    }, deltaCache);
+    let server = http.createServer((req, res) => {
+      deltaCache(req, res, 'some response', undefined, server.close().bind(server));
+    });
   });
 
   describe("client request doesn't have A-IM header", function() {
     it("should get full response with etag", function (done) {
       let deltaCache = DeltaCache();
-      let app = express();
       let text = 'some response';
-      app.get(DEFAULT_REQUEST_OPTIONS.path, (res, req, next) => {
-        req.locals.responseBody = text;
-        next();
-      }, deltaCache);
 
-      let server = https.createServer(EXPRESS_OPTIONS, app).listen(DEFAULT_REQUEST_OPTIONS.port, () => {
+      let server = http.createServer((res, req) => {
+        deltaCache(res, req, text);
+      });
+
+      server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
         GET(DEFAULT_REQUEST_OPTIONS).then(({ data, response }) => {
+          console.log('requested');
           assert.strictEqual(data, text);
           // etag should always be given
           assert.isDefined(response.headers['etag']);
@@ -111,13 +109,12 @@ describe('DeltaCache', function(){
   describe("client request has non-matching etag in If-None-Match header", function() {
     it("should get full response", function(done) {
       let deltaCache = DeltaCache();
-      let app = express();
       let text = 'some response';
-      app.get(DEFAULT_REQUEST_OPTIONS.path, (res, req, next) => {
-        req.locals.responseBody = text;
-        next();
-      }, deltaCache);
-      let server = https.createServer(EXPRESS_OPTIONS, app).listen(DEFAULT_REQUEST_OPTIONS.port, () => {
+      let server = http.createServer((req, res) => {
+        deltaCache(req, res, text);
+      });
+
+      server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
         GET(util._extend(DEFAULT_REQUEST_OPTIONS, {
           headers: {
             'A-IM': 'googlediffjson',
@@ -147,7 +144,7 @@ describe('DeltaCache', function(){
  */
 function GET(options) {
   return new Promise((resolve, reject) => {
-    let req = https.get(options, (res) => {
+    let req = http.get(options, (res) => {
       let data = '';
       res.on('data', (chunk) => {
         data += chunk;
@@ -163,14 +160,13 @@ function GET(options) {
 
 function simulateServerAndRequests(responseBodies, callbacks) {
   let deltaCache = DeltaCache();
-  let app = express();
   let responseNum = 0;
-  app.get(DEFAULT_REQUEST_OPTIONS.path, (req, res, next) => {
-    res.locals.responseBody = responseBodies[responseNum++];
-    next();
-  }, deltaCache);
+  let server = http.createServer((req, res) => {
+    deltaCache(req, res, responseBodies[responseNum++]);
+  });
+
   return new Promise((resolve, reject) => {
-    let server = https.createServer(EXPRESS_OPTIONS, app).listen(DEFAULT_REQUEST_OPTIONS.port, () => {
+    server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
 
       simulateRequests(DEFAULT_REQUEST_OPTIONS, undefined, callbacks).then(() => {
         server.close(err => {
