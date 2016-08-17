@@ -6,7 +6,7 @@ Complies with the [RFC 3229 delta encoding spec](https://tools.ietf.org/html/rfc
 
 ### Getting Started
 ```javascript
-var DeltaCache = require('delta-cache');
+var createDeltaCache = require('delta-cache');
 
 var deltaCache = createDeltaCache();
 var server = http.createServer((req, res) => {
