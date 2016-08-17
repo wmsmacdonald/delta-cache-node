@@ -1,6 +1,5 @@
 'use strict';
 
-const https = require('https');
 const http = require('http');
 const fs = require('fs');
 const url = require('url');
@@ -12,11 +11,6 @@ const DiffMatchPatch = require('diff-match-patch');
 const DeltaCache = require('../');
 
 const diff = new DiffMatchPatch();
-
-const EXPRESS_OPTIONS = {
-  key: fs.readFileSync('./ssl/test_key.pem'),
-  cert: fs.readFileSync('./ssl/test_cert.pem')
-};
 
 const DEFAULT_REQUEST_OPTIONS = {
   host: 'localhost',
@@ -43,7 +37,6 @@ describe('DeltaCache', function(){
 
       server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
         GET(DEFAULT_REQUEST_OPTIONS).then(({ data, response }) => {
-          console.log('requested');
           assert.strictEqual(data, text);
           // etag should always be given
           assert.isDefined(response.headers['etag']);
@@ -133,11 +126,10 @@ describe('DeltaCache', function(){
       });
     });
   });
-
 });
 
 /**
- * Gets resource via https
+ * Gets resource via http
  * @param options       options for http.request
  * @returns {Promise}
  * @constructor
@@ -184,7 +176,7 @@ function simulateServerAndRequests(responseBodies, callbacks) {
 
 /**
  * Recurisve method that keeps making requests (with etag if availible) as long as there are callbacks
- * @param requestOptions  https request options
+ * @param requestOptions  http request options
  * @param etag  {string|undefined}  etag to include in If-Match-None header (only if defined)
  * @param callbacks {array} functions executed with params after request with params (data, response)
  * @returns {Promise}
