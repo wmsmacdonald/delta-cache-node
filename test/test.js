@@ -8,7 +8,7 @@ const util = require('util');
 const assert = require('chai').assert;
 const DiffMatchPatch = require('diff-match-patch');
 
-const DeltaCache = require('../');
+const createDeltaCache = require('../');
 
 const diff = new DiffMatchPatch();
 
@@ -20,7 +20,7 @@ const DEFAULT_REQUEST_OPTIONS = {
 
 describe('DeltaCache', function(){
   it("should handle response", function() {
-    let deltaCache = DeltaCache();
+    let deltaCache = createDeltaCache();
     let server = http.createServer((req, res) => {
       deltaCache(req, res, 'some response', undefined, server.close().bind(server));
     });
@@ -28,7 +28,7 @@ describe('DeltaCache', function(){
 
   describe("client request doesn't have A-IM header", function() {
     it("should get full response with etag", function (done) {
-      let deltaCache = DeltaCache();
+      let deltaCache = createDeltaCache();
       let text = 'some response';
 
       let server = http.createServer((res, req) => {
@@ -101,7 +101,7 @@ describe('DeltaCache', function(){
 
   describe("client request has non-matching etag in If-None-Match header", function() {
     it("should get full response", function(done) {
-      let deltaCache = DeltaCache();
+      let deltaCache = createDeltaCache();
       let text = 'some response';
       let server = http.createServer((req, res) => {
         deltaCache(req, res, text);
@@ -151,7 +151,7 @@ function GET(options) {
 }
 
 function simulateServerAndRequests(responseBodies, callbacks) {
-  let deltaCache = DeltaCache();
+  let deltaCache = createDeltaCache();
   let responseNum = 0;
   let server = http.createServer((req, res) => {
     deltaCache(req, res, responseBodies[responseNum++]);
