@@ -12,17 +12,18 @@ var deltaCache = createDeltaCache();
 var server = http.createServer((req, res) => {
   deltaCache(req, res, 'sample dynamic response ' + new Date().toString());
 });
-
 ```
-## createDeltaCache()
+## API
+
+### `createDeltaCache()`
 Returns a `deltaCache` function corresponding to a delta cache instance.
 
-## deltaCache(req, res, responseBody, [callback])
+### deltaCache(req, res, responseBody, [callback])
 * `req` [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 * `res` [http.ServerMessage](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 * `responseBody` String 
 * `callback` Function
 
-Function uses the responseBody to send a response to the client with delta encoding if possible. It caches by resource path, so a second request to `/examplePath` will delta encoding (provided the client cached the first).
+Function uses the responseBody to send a response to the client with delta encoding if possible. It caches by resource path, so a second request to `/examplePath` will give delta encoded response (provided the client cached the first).
 
 The cache is in memory.
