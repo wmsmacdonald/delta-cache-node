@@ -28,11 +28,12 @@
   },
   "homepage": "https://github.com/wmsmacdonald/delta-cache-express#readme",
   "dependencies": {
-    "text-history": "^1.0.5"
+    "delta-history": "^0.1.3"
   },
   "devDependencies": {
     "chai": "^3.5.0",
     "diff-match-patch": "^1.0.0",
-    "mocha": "^2.5.3"
+    "mocha": "^2.5.3",
+    "vcdiff": "github:wmsmacdonald/node-vcdiff"
   }
 }

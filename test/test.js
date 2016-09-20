@@ -6,11 +6,9 @@ const url = require('url');
 const util = require('util');
 
 const assert = require('chai').assert;
-const DiffMatchPatch = require('diff-match-patch');
+const vcd = require('vcdiff');
 
 const createDeltaCache = require('../');
-
-const diff = new DiffMatchPatch();
 
 const DEFAULT_REQUEST_OPTIONS = {
   host: 'localhost',
@@ -37,7 +35,7 @@ describe('DeltaCache', function(){
 
       server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
         GET(DEFAULT_REQUEST_OPTIONS).then(({ data, response }) => {
-          assert.strictEqual(data, text);
+          assert.strictEqual(data.toString(), text);
           // etag should always be given
           assert.isDefined(response.headers['etag']);
           assert.strictEqual(response.statusCode, 200);
@@ -54,12 +52,13 @@ describe('DeltaCache', function(){
     it("should get a 226 response with working delta", function(done) {
       let version1 = 'body 1';
       let version2 = 'body 2';
+      //let delta = vcd.vcdiffEncodeSync(new Buffer(version2), new vcd.HashedDictionary(new Buffer(version1)));
 
       let cache;
       simulateServerAndRequests([version1, version2], [(data, res) => {
         cache = data;
         // first response asserts
-        assert.strictEqual(data, version1);
+        assert.strictEqual(data.toString(), version1);
         assert.isDefined(res.headers['etag']);
         assert.isUndefined(res.headers['im']);
 
@@ -68,33 +67,11 @@ describe('DeltaCache', function(){
         assert.isDefined(res.headers['etag']);
         assert.strictEqual(res.statusCode, 226);
         assert.strictEqual(res.statusMessage, 'IM Used');
-        assert.strictEqual(res.headers['im'], 'googlediffjson');
-        let patches = JSON.parse(data);
-        let patchedVersion = diff.patch_apply(patches, cache)[0];
+        assert.strictEqual(res.headers['im'], 'vcdiff');
+        let delta = new Buffer(data);
+        let target = vcd.vcdiffDecodeSync(delta, { dictionary: new Buffer(cache) });
         // ensure the patched version is the same as the one on the server
-        assert.strictEqual(patchedVersion, version2);
-      }]).then(done).catch(done);
-    });
-  });
-  describe("client request has matching etag in If-None-Match header and content hasn't changed", function() {
-    it("should get a 304 response without a response body", function(done) {
-      let text = 'some text';
-
-      simulateServerAndRequests([text, text], [(data, res) => {
-
-        assert.strictEqual(data, text);
-        assert.isDefined(res.headers['etag']);
-        assert.isUndefined(res.headers['im']);
-
-      }, (data, res) => {
-        assert.isDefined(res.headers['etag']);
-        // status not changed
-        assert.strictEqual(res.statusCode, 304);
-        assert.strictEqual(res.statusMessage, 'Not Modified');
-        // shouldnt' be any delta compression
-        assert.isUndefined(res.headers['im']);
-        // shouldn't have a response body
-        assert.strictEqual(data, '');
+        assert.strictEqual(target.toString(), version2);
       }]).then(done).catch(done);
     });
   });
@@ -110,11 +87,11 @@ describe('DeltaCache', function(){
       server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
         GET(util._extend(DEFAULT_REQUEST_OPTIONS, {
           headers: {
-            'A-IM': 'googlediffjson',
+            'A-IM': 'vcdiff',
             'If-None-Match': '"unmatchable_etag"'
           }
         })).then(({ data, response }) => {
-          assert.strictEqual(data, text);
+          assert.strictEqual(data.toString(), text);
           assert.isDefined(response.headers['etag']);
           assert.isUndefined(response.headers['im']);
           assert.strictEqual(response.statusCode, 200);
@@ -137,13 +114,13 @@ describe('DeltaCache', function(){
 function GET(options) {
   return new Promise((resolve, reject) => {
     let req = http.get(options, (res) => {
-      let data = '';
+      let data = [];
       res.on('data', (chunk) => {
-        data += chunk;
+        data.push(chunk);
       });
       res.on('end', () => {
         req.end();
-        resolve({ data, response: res });
+        resolve({ data: Buffer.concat(data), response: res });
       });
     });
     req.on('error', reject);
@@ -205,7 +182,7 @@ function request(requestOptions, etag) {
   let options = util._extend(requestOptions);
   if (etag !== undefined) {
     options.headers = {
-      'A-IM': 'googlediffjson',
+      'A-IM': 'vcdiff',
       'If-None-Match': etag
     };
   }
