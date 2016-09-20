@@ -1,6 +1,6 @@
 {
   "name": "delta-cache",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Node server-side support for RFC 3229 delta encoding",
   "main": "lib/index.js",
   "directories": {
