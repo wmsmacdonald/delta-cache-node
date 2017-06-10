@@ -20,7 +20,7 @@ describe('DeltaCache', function(){
   it("should handle response", function() {
     let deltaCache = createDeltaCache();
     let server = http.createServer((req, res) => {
-      deltaCache(req, res, 'some response', undefined, server.close().bind(server));
+      deltaCache.respondWithDeltaEncoding(req, res, 'some response', undefined, server.close().bind(server));
     });
   });
 
@@ -30,7 +30,7 @@ describe('DeltaCache', function(){
       let text = 'some response';
 
       let server = http.createServer((res, req) => {
-        deltaCache(res, req, text);
+        deltaCache.respondWithDeltaEncoding(res, req, text);
       });
 
       server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
@@ -81,7 +81,7 @@ describe('DeltaCache', function(){
       let deltaCache = createDeltaCache();
       let text = 'some response';
       let server = http.createServer((req, res) => {
-        deltaCache(req, res, text);
+        deltaCache.respondWithDeltaEncoding(req, res, text);
       });
 
       server.listen(DEFAULT_REQUEST_OPTIONS.port, () => {
@@ -131,7 +131,7 @@ function simulateServerAndRequests(responseBodies, callbacks) {
   let deltaCache = createDeltaCache();
   let responseNum = 0;
   let server = http.createServer((req, res) => {
-    deltaCache(req, res, responseBodies[responseNum++]);
+    deltaCache.respondWithDeltaEncoding(req, res, responseBodies[responseNum++]);
   });
 
   return new Promise((resolve, reject) => {
