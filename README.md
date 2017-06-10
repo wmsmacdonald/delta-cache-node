@@ -25,7 +25,7 @@ This class internally contains file versions that are saved to disk.
 * `req` [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 * `res` [http.ServerMessage](https://nodejs.org/api/http.html#http_class_http_serverresponse)
 * `data` String | Buffer
-* `cacheKey` String = require('url').parse(req.url).path
+* `fileId` String = require('url').parse(req.url).path
 * `callback` Function()
 
 Sends a response with `data` to the client, using delta encoding if possible. If `fileId` is not given, it defaults to the [path](https://nodejs.org/api/url.html#url_urlobject_path) of the request URL. The parameter `fileId` identifies the file in the server version history, so a second request to the same `fileId` will give a delta encoded response (provided the client cached the first).
