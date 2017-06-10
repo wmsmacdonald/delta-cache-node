@@ -20,7 +20,7 @@ describe('DeltaCache', function(){
   it("should handle response", function() {
     let deltaCache = createDeltaCache();
     let server = http.createServer((req, res) => {
-      deltaCache.respondWithDeltaEncoding(req, res, 'some response', undefined, server.close().bind(server));
+      deltaCache.respondWithDeltaEncoding(req, res, 'some response', server.close().bind(server));
     });
   });
 
@@ -49,10 +49,9 @@ describe('DeltaCache', function(){
   });
 
   describe("client request has matching etag in If-None-Match header and content has changed", function() {
-    it("should get a 226 response with working delta", function(done) {
+    it("should get a 226 response with working delta for string", function(done) {
       let version1 = 'body 1';
       let version2 = 'body 2';
-      //let delta = vcd.vcdiffEncodeSync(new Buffer(version2), new vcd.HashedDictionary(new Buffer(version1)));
 
       let cache;
       simulateServerAndRequests([version1, version2], [(data, res) => {
@@ -73,6 +72,72 @@ describe('DeltaCache', function(){
         // ensure the patched version is the same as the one on the server
         assert.strictEqual(target.toString(), version2);
       }]).then(done).catch(done);
+    });
+    it("should get a 226 response with working delta for buffer", function(done) {
+      let version1 = new Buffer('body 1');
+      let version2 = new Buffer('body 2');
+
+      let cache;
+      simulateServerAndRequests([version1, version2], [(data, res) => {
+        cache = data;
+        // first response asserts
+        assert.strictEqual(data.toString(), version1.toString());
+        assert.isDefined(res.headers['etag']);
+        assert.isUndefined(res.headers['im']);
+
+      }, (data, res) => {
+        // second response asserts
+        assert.isDefined(res.headers['etag']);
+        assert.strictEqual(res.statusCode, 226);
+        assert.strictEqual(res.statusMessage, 'IM Used');
+        assert.strictEqual(res.headers['im'], 'vcdiff');
+        let delta = new Buffer(data);
+        let target = vcd.vcdiffDecodeSync(delta, { dictionary: new Buffer(cache) });
+        // ensure the patched version is the same as the one on the server
+        assert.strictEqual(target.toString(), version2.toString());
+      }]).then(done).catch(done);
+    });
+    it("should get a 226 response with working delta with same fileId", function(done) {
+      let version1 = new Buffer('body 1');
+      let version2 = new Buffer('body 2');
+
+      let cache;
+      simulateServerAndRequests([version1, version2], [(data, res) => {
+        cache = data;
+        // first response asserts
+        assert.strictEqual(data.toString(), version1.toString());
+        assert.isDefined(res.headers['etag']);
+        assert.isUndefined(res.headers['im']);
+
+      }, (data, res) => {
+        // second response asserts
+        assert.isDefined(res.headers['etag']);
+        assert.strictEqual(res.statusCode, 226);
+        assert.strictEqual(res.statusMessage, 'IM Used');
+        assert.strictEqual(res.headers['im'], 'vcdiff');
+        let delta = new Buffer(data);
+        let target = vcd.vcdiffDecodeSync(delta, { dictionary: new Buffer(cache) });
+        // ensure the patched version is the same as the one on the server
+        assert.strictEqual(target.toString(), version2.toString());
+      }], ['id 1', 'id 1']).then(done).catch(done);
+    });
+    it("should get a 200 full response with different fileId", function(done) {
+      let version1 = new Buffer('body 1');
+      let version2 = new Buffer('body 2');
+
+      let cache;
+      simulateServerAndRequests([version1, version2], [(data, res) => {
+        cache = data;
+        // first response asserts
+        assert.strictEqual(data.toString(), version1.toString());
+        assert.isDefined(res.headers['etag']);
+        assert.isUndefined(res.headers['im']);
+
+      }, (data, res) => {
+        assert.strictEqual(data.toString(), version2.toString());
+        assert.isDefined(res.headers['etag']);
+        assert.isUndefined(res.headers['im']);
+      }], ['id 1', 'id 2']).then(done).catch(done);
     });
   });
 
@@ -127,11 +192,14 @@ function GET(options) {
   });
 }
 
-function simulateServerAndRequests(responseBodies, callbacks) {
+function simulateServerAndRequests(responseBodies, callbacks, fileIds) {
+  fileIds = fileIds === undefined ? new Array(responseBodies.length) : fileIds
+
   let deltaCache = createDeltaCache();
   let responseNum = 0;
   let server = http.createServer((req, res) => {
-    deltaCache.respondWithDeltaEncoding(req, res, responseBodies[responseNum++]);
+    deltaCache.respondWithDeltaEncoding(req, res, responseBodies[responseNum],
+      fileIds[responseNum++]);
   });
 
   return new Promise((resolve, reject) => {
@@ -163,7 +231,7 @@ function simulateRequests(requestOptions, etag, callbacks) {
     if (callbacks.length > 0) {
       request(requestOptions, etag).then(({ data, response }) => {
         callbacks[0](data, response);
-        return simulateRequests(requestOptions, response.headers['etag'], callbacks.splice(1));
+        return simulateRequests(requestOptions, response.headers['etag'], callbacks.slice(1));
       }).then(resolve).catch(reject);
     }
     else {
