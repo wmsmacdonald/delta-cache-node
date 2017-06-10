@@ -16,14 +16,18 @@ var server = http.createServer((req, res) => {
 ## API
 
 ### `createDeltaCache()`
-Returns a `deltaCache` function corresponding to a delta cache instance.
+Returns a `DeltaCache` instance.
 
-### deltaCache(req, res, responseBody, [callback])
+## Class: `DeltaCache`
+This class internally contains file versions that are saved to disk.
+
+### deltaCache.respondWithDeltaEncoding(req, res, data[, fileId][, callback])
 * `req` [http.IncomingMessage](https://nodejs.org/api/http.html#http_class_http_incomingmessage)
 * `res` [http.ServerMessage](https://nodejs.org/api/http.html#http_class_http_serverresponse)
-* `responseBody` String 
-* `callback` Function
+* `data` String | Buffer
+* `cacheKey` String = require('url').parse(req.url).path
+* `callback` Function()
 
-Function uses the responseBody to send a response to the client with delta encoding if possible. It caches by resource path, so a second request to `/examplePath` will give delta encoded response (provided the client cached the first).
+Sends a response with `data` to the client, using delta encoding if possible. If `fileId` is not given, it defaults to the [path](https://nodejs.org/api/url.html#url_urlobject_path) of the request URL. The parameter `fileId` identifies the file in the server version history, so a second request to the same `fileId` will give a delta encoded response (provided the client cached the first).
 
-The cache is in memory.
+All versions of data are stored in disk in the filesystem as temporary files, and will be deleted when the Node process exits. To see the implementation of the version cache, see [delta-history](https://github.com/wmsmacdonald/delta-history). 
